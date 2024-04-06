@@ -17,11 +17,18 @@ const char* const colors_names[VgmColorModeCount] = {
     "Rainbow",
     "RGB Backlight",
 };
+
 static void momentum_app_scene_misc_vgm_colors_changed(VariableItem* item) {
     MomentumApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
     variable_item_set_current_value_text(item, colors_names[index]);
     momentum_settings.vgm_color_mode = index;
+
+    if(index == VgmColorModeDefault) {
+        momentum_settings.vgm_color_fg.mode = VgmColorModeDefault;
+        momentum_settings.vgm_color_bg.mode = VgmColorModeDefault;
+    }
+
     app->save_settings = true;
     variable_item_set_locked(
         variable_item_list_get(app->var_item_list, VarItemListIndexForeground),
@@ -37,27 +44,48 @@ static const struct {
     char* name;
     RgbColor color;
 } vgm_colors[] = {
-    {"Off", {{0, 0, 0}}},         {"Orange", {{255, 130, 0}}}, {"Red", {{255, 0, 0}}},
-    {"Maroon", {{176, 48, 96}}},  {"Yellow", {{255, 255, 0}}}, {"Olive", {{128, 128, 0}}},
-    {"Lime", {{0, 255, 0}}},      {"Green", {{74, 255, 0}}},   {"Aqua", {{0, 255, 255}}},
-    {"Cyan", {{0, 255, 255}}},    {"Azure", {{0, 127, 255}}},  {"Teal", {{0, 128, 128}}},
-    {"Blue", {{0, 0, 255}}},      {"Navy", {{0, 0, 128}}},     {"Purple", {{128, 0, 128}}},
-    {"Fuchsia", {{255, 0, 255}}}, {"Pink", {{173, 31, 173}}},  {"Brown", {{150, 75, 0}}},
-    {"White", {{255, 255, 255}}},
+    {"Off", {{0, 0, 0}}},        {"Rainbow", {{0, 0, 0}}},    {"RgbMod", {{0, 0, 0}}},
+    {"Orange", {{255, 130, 0}}}, {"Red", {{255, 0, 0}}},      {"Maroon", {{176, 48, 96}}},
+    {"Yellow", {{255, 255, 0}}}, {"Olive", {{128, 128, 0}}},  {"Lime", {{0, 255, 0}}},
+    {"Green", {{74, 255, 0}}},   {"Aqua", {{0, 255, 255}}},   {"Cyan", {{0, 255, 255}}},
+    {"Azure", {{0, 127, 255}}},  {"Teal", {{0, 128, 128}}},   {"Blue", {{0, 0, 255}}},
+    {"Navy", {{0, 0, 128}}},     {"Purple", {{128, 0, 128}}}, {"Fuchsia", {{255, 0, 255}}},
+    {"Pink", {{173, 31, 173}}},  {"Brown", {{150, 75, 0}}},   {"White", {{255, 255, 255}}},
 };
+
 static const size_t vgm_colors_count = COUNT_OF(vgm_colors);
+
 static void momentum_app_scene_misc_vgm_foreground_changed(VariableItem* item) {
     MomentumApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
     variable_item_set_current_value_text(item, vgm_colors[index].name);
-    momentum_settings.vgm_color_fg = vgm_colors[index].color;
+    momentum_settings.vgm_color_fg.rgb = vgm_colors[index].color;
+
+    if(strcmp("Rainbow", vgm_colors[index].name) == 0) {
+        momentum_settings.vgm_color_fg.mode = VgmColorModeRainbow;
+    }
+    if(strcmp("RgbMod", vgm_colors[index].name) == 0) {
+        momentum_settings.vgm_color_fg.mode = VgmColorModeRgbBacklight;
+        rgb_backlight_get_color(0, &momentum_settings.vgm_color_fg.rgb);
+    }
+
     app->save_settings = true;
 }
+
 static void momentum_app_scene_misc_vgm_background_changed(VariableItem* item) {
     MomentumApp* app = variable_item_get_context(item);
     uint8_t index = variable_item_get_current_value_index(item);
     variable_item_set_current_value_text(item, vgm_colors[index].name);
-    momentum_settings.vgm_color_bg = vgm_colors[index].color;
+    momentum_settings.vgm_color_bg.rgb = vgm_colors[index].color;
+
+    if(strcmp("Rainbow", vgm_colors[index].name) == 0) {
+        momentum_settings.vgm_color_bg.mode = VgmColorModeRainbow;
+    }
+    if(strcmp("RgbMod", vgm_colors[index].name) == 0) {
+        momentum_settings.vgm_color_bg.mode = VgmColorModeRgbBacklight;
+        rgb_backlight_get_color(0, &momentum_settings.vgm_color_bg.rgb);
+    }
+
     app->save_settings = true;
 }
 
@@ -83,14 +111,16 @@ void momentum_app_scene_misc_vgm_on_enter(void* context) {
         vgm_colors_count,
         momentum_app_scene_misc_vgm_foreground_changed,
         app);
-    RgbColor color = momentum_settings.vgm_color_fg;
+    RgbColor color = momentum_settings.vgm_color_fg.rgb;
     bool found = false;
+
     for(size_t i = 0; i < vgm_colors_count; i++) {
         if(rgbcmp(&color, &vgm_colors[i].color) != 0) continue;
         value_index = i;
         found = true;
         break;
     }
+
     variable_item_set_current_value_index(item, found ? value_index : vgm_colors_count);
     if(found) {
         variable_item_set_current_value_text(item, vgm_colors[value_index].name);
@@ -108,14 +138,16 @@ void momentum_app_scene_misc_vgm_on_enter(void* context) {
         vgm_colors_count,
         momentum_app_scene_misc_vgm_background_changed,
         app);
-    color = momentum_settings.vgm_color_bg;
+    color = momentum_settings.vgm_color_bg.rgb;
     found = false;
+
     for(size_t i = 0; i < vgm_colors_count; i++) {
         if(rgbcmp(&color, &vgm_colors[i].color) != 0) continue;
         value_index = i;
         found = true;
         break;
     }
+
     variable_item_set_current_value_index(item, found ? value_index : vgm_colors_count);
     if(found) {
         variable_item_set_current_value_text(item, vgm_colors[value_index].name);
@@ -143,6 +175,7 @@ bool momentum_app_scene_misc_vgm_on_event(void* context, SceneManagerEvent event
     if(event.type == SceneManagerEventTypeCustom) {
         scene_manager_set_scene_state(app->scene_manager, MomentumAppSceneMiscVgm, event.event);
         consumed = true;
+
         switch(event.event) {
         case VarItemListIndexForeground:
         case VarItemListIndexBackground:

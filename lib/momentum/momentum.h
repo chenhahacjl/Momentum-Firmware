@@ -52,6 +52,14 @@ typedef enum {
     VgmColorModeCount,
 } VgmColorMode;
 
+typedef union __attribute__((packed)) {
+    struct {
+        VgmColorMode mode;
+        RgbColor rgb;
+    };
+    uint32_t value;
+} RgbColorTransmit;
+
 typedef struct {
     char asset_pack[ASSET_PACKS_NAME_LEN];
     uint32_t anim_speed;
@@ -87,8 +95,8 @@ typedef struct {
     FuriHalSerialId uart_nmea_channel;
     bool file_naming_prefix_after;
     VgmColorMode vgm_color_mode;
-    RgbColor vgm_color_fg;
-    RgbColor vgm_color_bg;
+    RgbColorTransmit vgm_color_fg;
+    RgbColorTransmit vgm_color_bg;
 } MomentumSettings;
 
 typedef struct {
